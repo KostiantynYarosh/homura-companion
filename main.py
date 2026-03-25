@@ -1,5 +1,14 @@
 import sys
+import re
 from difflib import SequenceMatcher
+
+# ctranslate2 (faster-whisper) конфликтует с Qt если Qt импортируется первым.
+# Грузим модель до любых PyQt6-импортов.
+from config import STT_MODEL
+print(f"[whisper] loading model '{STT_MODEL}'...")
+from faster_whisper import WhisperModel
+_whisper = WhisperModel(STT_MODEL, device="auto", compute_type="int8")
+print("[whisper] model ready")
 
 from PyQt6.QtWidgets import QApplication
 from PyQt6.QtCore import QTimer
@@ -22,8 +31,8 @@ def main():
     tray      = SystemTrayManager()
     popup     = ChatPopup()
     ai_core   = AICore()
-    mic       = MicListener()
-    sys_audio = SystemAudioListener()
+    mic       = MicListener(_whisper)
+    sys_audio = SystemAudioListener(_whisper)
 
     character.move(WINDOW_MARGIN, WINDOW_MARGIN)
 
@@ -35,9 +44,15 @@ def main():
     tray.show_requested.connect(window.show)
     tray.quit_requested.connect(app.quit)
 
-    _WAKE_WORDS  = ("хомура", "homura", "хомуру", "хамура", "комура", "хамора", "мамора")
+    _HOODIE_ON_RE  = re.compile(r'(одень|надень|надеть|одеть).{0,15}(худи|кофт|свитер)|холодно|мёрзнешь|мёрзнет', re.IGNORECASE)
+    _HOODIE_OFF_RE = re.compile(r'(сними|снять|снимай).{0,15}(худи|кофт|свитер)|жарко', re.IGNORECASE)
+
+    _WAKE_WORDS  = (
+        "хомура", "homura", "хомуру", "хамура", "комура", "хамора",
+        "мамора", "хомуро", "хомур", "омура", "гомура", "хомурa",
+    )
     _WAKE_FUZZY  = ("хомура", "homura")   # для нечёткого совпадения
-    _FUZZY_RATIO = 0.75
+    _FUZZY_RATIO = 0.65                   # снизили порог: "хамора" = 0.67
     _SESSION_MS  = 60_000  # 60 сек после последней реплики
 
     session_timer = QTimer()
@@ -51,14 +66,23 @@ def main():
     session_timer.timeout.connect(_end_session)
 
     def _has_wake(t: str) -> bool:
+        # точное совпадение подстроки
         if any(w in t for w in _WAKE_WORDS):
             return True
+        # нечёткое совпадение по каждому слову
         words = t.split()
         for word in words:
             for wake in _WAKE_FUZZY:
                 ratio = SequenceMatcher(None, word, wake).ratio()
                 if ratio >= _FUZZY_RATIO:
+                    print(f"[wake] fuzzy match: '{word}' ~ '{wake}' = {ratio:.2f}")
                     return True
+        # проверяем биграммы — вдруг Whisper разбил "хо мура"
+        for i in range(len(words) - 1):
+            bigram = words[i] + words[i + 1]
+            if any(w in bigram for w in _WAKE_WORDS):
+                print(f"[wake] bigram match: '{bigram}'")
+                return True
         return False
 
     def _on_mic(text: str):
@@ -69,6 +93,10 @@ def main():
         if session_active[0]:
             session_timer.start()
             print(f"[send] {text}")
+            if _HOODIE_ON_RE.search(t):
+                character.put_on_hoodie()
+            elif _HOODIE_OFF_RE.search(t):
+                character.take_off_hoodie()
             ai_core.send(text)
 
     mic.listening_started.connect(
@@ -81,6 +109,9 @@ def main():
 
     ai_core.listen_pc_requested.connect(lambda: sys_audio.set_active(True))
     ai_core.listen_pc_requested.connect(lambda: popup.set_status("Слушаю комп..."))
+    ai_core.hoodie_requested.connect(
+        lambda state: character.put_on_hoodie() if state == "on" else character.take_off_hoodie()
+    )
 
     sys_audio.transcribed.connect(ai_core.send)
     sys_audio.capture_stopped.connect(lambda: popup.set_status(""))

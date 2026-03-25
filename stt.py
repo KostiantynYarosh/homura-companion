@@ -1,3 +1,4 @@
+import collections
 import queue
 import re
 
@@ -10,38 +11,32 @@ from config import (
     STT_MODEL, STT_LANGUAGE,
 )
 
-_FRAME_MS     = 20
-_FRAME_SIZE   = MIC_SAMPLE_RATE * _FRAME_MS // 1000
-_SILENCE_FRAMES = int(VAD_SILENCE_MS / _FRAME_MS)
+_FRAME_MS          = 20
+_FRAME_SIZE        = MIC_SAMPLE_RATE * _FRAME_MS // 1000
+_SILENCE_FRAMES    = int(VAD_SILENCE_MS / _FRAME_MS)
+_PRE_BUFFER_FRAMES = 10   # 10 × 20 ms = 200 ms перед началом речи
 
 class MicListener(QThread):
-    transcribed          = pyqtSignal(str)
-    listening_started    = pyqtSignal()
-    listening_stopped    = pyqtSignal()
+    transcribed           = pyqtSignal(str)
+    listening_started     = pyqtSignal()
+    listening_stopped     = pyqtSignal()
     transcription_skipped = pyqtSignal()
-    error_occurred       = pyqtSignal(str)
+    error_occurred        = pyqtSignal(str)
 
-    def __init__(self, parent=None):
+    def __init__(self, whisper_model, parent=None):
         super().__init__(parent)
         self._running     = False
         self._audio_queue: queue.Queue = queue.Queue()
+        self._whisper     = whisper_model
 
     def run(self):
         try:
             import sounddevice as sd
-            from pywhispercpp.model import Model
         except ImportError as e:
             self.error_occurred.emit(f"Зависимость не установлена: {e}")
             return
 
-        try:
-
-            whisper = Model(STT_MODEL, n_threads=4, print_realtime=False,
-                            print_progress=False)
-        except Exception as e:
-            self.error_occurred.emit(f"Ошибка загрузки Whisper: {e}")
-            return
-
+        pre_buffer: collections.deque = collections.deque(maxlen=_PRE_BUFFER_FRAMES)
         speech_buffer: list[np.ndarray] = []
         speech_frame_count  = 0
         silence_frame_count = 0
@@ -74,12 +69,15 @@ class MicListener(QThread):
                         silence_frame_count  = 0
                     else:
                         silence_frame_count += 1
-                        speech_frame_count   = 0
+                        if not is_speaking and silence_frame_count > 5:
+                            speech_frame_count = 0
+
+                    if not is_speaking:
+                        pre_buffer.append(frame)
 
                     if not is_speaking and speech_frame_count >= VAD_SPEECH_FRAMES:
                         is_speaking   = True
-                        speech_buffer = []
-                        print("[mic] speech detected")
+                        speech_buffer = list(pre_buffer)
                         self.listening_started.emit()
 
                     if is_speaking:
@@ -90,21 +88,23 @@ class MicListener(QThread):
                             self.listening_stopped.emit()
                             if speech_buffer:
                                 audio = np.concatenate(speech_buffer)
-                                self._transcribe(whisper, audio)
+                                self._transcribe(audio)
                             speech_buffer       = []
                             speech_frame_count  = 0
                             silence_frame_count = 0
+                            pre_buffer.clear()
 
                 carry = data
 
     _NOISE_RE = re.compile(r'^\[.*\]$|^\(.*\)$')
 
-    def _transcribe(self, whisper, audio: np.ndarray):
+    def _transcribe(self, audio: np.ndarray):
         try:
             lang_kwarg = {} if STT_LANGUAGE is None else {"language": STT_LANGUAGE}
-            segments = whisper.transcribe(audio, **lang_kwarg)
+            segments, _info = self._whisper.transcribe(audio, vad_filter=True, **lang_kwarg)
             text = "".join(s.text for s in segments).strip()
-            print(f"[mic] transcribed: '{text}'")
+            if text:
+                print(f"[mic] transcribed: '{text}'")
             if text and not self._NOISE_RE.match(text.lower()) and len(text) > 2:
                 self.transcribed.emit(text)
             else:

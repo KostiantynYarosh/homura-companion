@@ -8,7 +8,7 @@ from PyQt6.QtWidgets import QWidget
 from PyQt6.QtCore import Qt, QTimer, QRect, QRectF, QThread, pyqtSignal
 from PyQt6.QtGui import QPainter, QPixmap, QImage, QColor, QBrush, QPainterPath, QPen
 
-from config import CHAR_SIZE, WINDOW_MARGIN
+from config import CHAR_SIZE, WINDOW_MARGIN, EMOTION_COLORS
 
 _ASSETS = Path(__file__).parent / "assets"
 
@@ -23,6 +23,12 @@ _RIGHT_FOOT_REPEATS = 5
 _TIPY_TOES_MIN_MS  = 30_000
 _TIPY_TOES_MAX_MS  = 75_000
 _TIPY_TOES_REPEATS = 5
+_LEFT_EAR_MIN_MS   = 25_000
+_LEFT_EAR_MAX_MS   = 60_000
+_LEFT_EAR_REPEATS  = 1
+_RIGHT_EAR_MIN_MS  = 30_000
+_RIGHT_EAR_MAX_MS  = 70_000
+_RIGHT_EAR_REPEATS = 1
 
 
 def _load_ase(filename: str) -> list[tuple[QPixmap, int]]:
@@ -191,15 +197,19 @@ def _load_ase(filename: str) -> list[tuple[QPixmap, int]]:
 
 
 class _SpriteLoader(QThread):
-    sprites_ready = pyqtSignal(list, list, list, list, list)
+    sprites_ready = pyqtSignal(list, list, list, list, list, list, list, list, list)
 
     def run(self):
-        breathing   = _load_ase("idle/idle-breathing.ase")
-        side_eye    = _load_ase("idle/idle-side-eye.ase")
-        foot_stomp  = _load_ase("idle/idle-stoping-left-foot.ase")
-        right_foot  = _load_ase("idle/idle-stoping-right-foot.ase")
-        tipy_toes   = _load_ase("idle/idle-tipy-toes.ase")
-        self.sprites_ready.emit(breathing, side_eye, foot_stomp, right_foot, tipy_toes)
+        breathing        = _load_ase("idle/idle-breathing.ase")
+        side_eye         = _load_ase("idle/idle-side-eye.ase")
+        foot_stomp       = _load_ase("idle/idle-stoping-left-foot.ase")
+        right_foot       = _load_ase("idle/idle-stoping-right-foot.ase")
+        tipy_toes        = _load_ase("idle/idle-tipy-toes.ase")
+        hoodie           = _load_ase("idle/idle-hoodie.ase")
+        hoodie_breathing = _load_ase("idle/idle-hoodie-breathing.ase")
+        left_ear         = _load_ase("idle/idle-move-left-ear.ase")
+        right_ear        = _load_ase("idle/idle-move-right-ear.ase")
+        self.sprites_ready.emit(breathing, side_eye, foot_stomp, right_foot, tipy_toes, hoodie, hoodie_breathing, left_ear, right_ear)
 
 
 class CharacterWidget(QWidget):
@@ -216,12 +226,25 @@ class CharacterWidget(QWidget):
         self._right_foot_count = 0
         self._in_tipy_toes     = False
         self._tipy_toes_count  = 0
+        self._in_hoodie        = False
+        self._hoodie_on        = False
+        self._in_left_ear      = False
+        self._left_ear_count   = 0
+        self._in_right_ear     = False
+        self._right_ear_count  = 0
+        self._emotion          = "neutral"
+        self._glow_alpha       = 0       # 0..255, анимируется
+        self._glow_color       = QColor("#7EB8F7")
 
-        self._breathing:  list = []
-        self._side_eye:   list = []
-        self._foot_stomp: list = []
-        self._right_foot: list = []
-        self._tipy_toes:  list = []
+        self._breathing:        list = []
+        self._side_eye:         list = []
+        self._foot_stomp:       list = []
+        self._right_foot:       list = []
+        self._tipy_toes:        list = []
+        self._hoodie:           list = []
+        self._hoodie_breathing: list = []
+        self._left_ear:         list = []
+        self._right_ear:        list = []
         self._frames    = self._breathing
         self._frame_idx = 0
 
@@ -245,37 +268,72 @@ class CharacterWidget(QWidget):
         self._tipy_toes_timer.setSingleShot(True)
         self._tipy_toes_timer.timeout.connect(self._trigger_tipy_toes)
 
+        self._left_ear_timer = QTimer(self)
+        self._left_ear_timer.setSingleShot(True)
+        self._left_ear_timer.timeout.connect(self._trigger_left_ear)
+
+        self._right_ear_timer = QTimer(self)
+        self._right_ear_timer.setSingleShot(True)
+        self._right_ear_timer.timeout.connect(self._trigger_right_ear)
+
+        # таймер возврата из эмоции в idle
+        self._emotion_timer = QTimer(self)
+        self._emotion_timer.setSingleShot(True)
+        self._emotion_timer.timeout.connect(self._end_emotion)
+
+        # таймер fade-in/out свечения (тикает каждые 30ms)
+        self._glow_timer = QTimer(self)
+        self._glow_timer.setInterval(30)
+        self._glow_timer.timeout.connect(self._tick_glow)
+        self._glow_target = 0   # целевой alpha свечения
+
         self._loader = _SpriteLoader(self)
         self._loader.sprites_ready.connect(self._on_sprites_ready)
         self._loader.start()
 
-    def _on_sprites_ready(self, breathing: list, side_eye: list, foot_stomp: list, right_foot: list, tipy_toes: list):
-        self._breathing  = breathing
-        self._side_eye   = side_eye
-        self._foot_stomp = foot_stomp
-        self._right_foot = right_foot
-        self._tipy_toes  = tipy_toes
-        self._frames    = self._breathing
-        self._frame_idx = 0
-
-        if self._breathing:
-            ref_px, _ = self._breathing[0]
-            char_w = round(CHAR_SIZE * ref_px.width() / ref_px.height())
+    def _resize_for(self, frames: list):
+        if frames:
+            px, _ = frames[0]
+            new_w = round(CHAR_SIZE * px.width() / px.height()) if px.height() > 0 else CHAR_SIZE
         else:
-            char_w = CHAR_SIZE
-        self.setFixedSize(char_w, CHAR_SIZE)
-        if self.parentWidget():
-            self.parentWidget().setFixedSize(
-                char_w + WINDOW_MARGIN * 2,
-                CHAR_SIZE + WINDOW_MARGIN * 2,
-            )
+            new_w = CHAR_SIZE
+        if self.width() != new_w:
+            self.setFixedSize(new_w, CHAR_SIZE)
+            if self.parentWidget():
+                self.parentWidget().setFixedSize(
+                    new_w + WINDOW_MARGIN * 2,
+                    CHAR_SIZE + WINDOW_MARGIN * 2,
+                )
+
+    def _set_frames(self, frames: list, idx: int = 0):
+        self._frames    = frames
+        self._frame_idx = idx
+        self._resize_for(frames)
+
+    def _on_sprites_ready(self, breathing: list, side_eye: list, foot_stomp: list, right_foot: list, tipy_toes: list, hoodie: list, hoodie_breathing: list, left_ear: list, right_ear: list):
+        self._breathing        = breathing
+        self._side_eye         = side_eye
+        self._foot_stomp       = foot_stomp
+        self._right_foot       = right_foot
+        self._tipy_toes        = tipy_toes
+        self._hoodie           = hoodie
+        self._hoodie_breathing = hoodie_breathing
+        self._left_ear         = left_ear
+        self._right_ear        = right_ear
+        self._set_frames(self._idle_frames)
 
         self._schedule_frame()
         self._schedule_side_eye()
         self._schedule_foot_stomp()
         self._schedule_right_foot()
         self._schedule_tipy_toes()
+        self._schedule_left_ear()
+        self._schedule_right_ear()
         self.update()
+
+    @property
+    def _idle_frames(self) -> list:
+        return self._hoodie_breathing if self._hoodie_on else self._breathing
 
     def _schedule_frame(self):
         if self._frames:
@@ -287,6 +345,9 @@ class CharacterWidget(QWidget):
             return
         self._frame_idx += 1
         if self._frame_idx >= len(self._frames):
+            if self._in_hoodie:
+                self._end_hoodie()
+                return
             if self._in_side_eye:
                 self._end_side_eye()
                 return
@@ -308,6 +369,18 @@ class CharacterWidget(QWidget):
                     self._end_tipy_toes()
                     return
                 self._frame_idx = 0
+            elif self._in_left_ear:
+                self._left_ear_count += 1
+                if self._left_ear_count >= _LEFT_EAR_REPEATS:
+                    self._end_left_ear()
+                    return
+                self._frame_idx = 0
+            elif self._in_right_ear:
+                self._right_ear_count += 1
+                if self._right_ear_count >= _RIGHT_EAR_REPEATS:
+                    self._end_right_ear()
+                    return
+                self._frame_idx = 0
             else:
                 self._frame_idx = 0
         self.update()
@@ -317,19 +390,17 @@ class CharacterWidget(QWidget):
         self._side_eye_timer.start(random.randint(_SIDE_EYE_MIN_MS, _SIDE_EYE_MAX_MS))
 
     def _trigger_side_eye(self):
-        if not self._side_eye:
+        if not self._side_eye or self._hoodie_on:
             self._schedule_side_eye()
             return
         self._in_side_eye = True
-        self._frames      = self._side_eye
-        self._frame_idx   = 0
+        self._set_frames(self._side_eye)
         self.update()
         self._schedule_frame()
 
     def _end_side_eye(self):
         self._in_side_eye = False
-        self._frames      = self._breathing
-        self._frame_idx   = 0
+        self._set_frames(self._idle_frames)
         self.update()
         self._schedule_frame()
         self._schedule_side_eye()
@@ -338,20 +409,18 @@ class CharacterWidget(QWidget):
         self._foot_stomp_timer.start(random.randint(_FOOT_STOMP_MIN_MS, _FOOT_STOMP_MAX_MS))
 
     def _trigger_foot_stomp(self):
-        if not self._foot_stomp or self._in_side_eye or self._in_foot_stomp:
+        if not self._foot_stomp or self._in_side_eye or self._in_foot_stomp or self._hoodie_on:
             self._schedule_foot_stomp()
             return
         self._in_foot_stomp    = True
         self._foot_stomp_count = 0
-        self._frames           = self._foot_stomp
-        self._frame_idx        = 0
+        self._set_frames(self._foot_stomp)
         self.update()
         self._schedule_frame()
 
     def _end_foot_stomp(self):
         self._in_foot_stomp = False
-        self._frames        = self._breathing
-        self._frame_idx     = 0
+        self._set_frames(self._idle_frames)
         self.update()
         self._schedule_frame()
         self._schedule_foot_stomp()
@@ -360,20 +429,18 @@ class CharacterWidget(QWidget):
         self._right_foot_timer.start(random.randint(_RIGHT_FOOT_MIN_MS, _RIGHT_FOOT_MAX_MS))
 
     def _trigger_right_foot(self):
-        if not self._right_foot or self._in_side_eye or self._in_foot_stomp or self._in_right_foot or self._in_tipy_toes:
+        if not self._right_foot or self._in_side_eye or self._in_foot_stomp or self._in_right_foot or self._in_tipy_toes or self._hoodie_on:
             self._schedule_right_foot()
             return
         self._in_right_foot    = True
         self._right_foot_count = 0
-        self._frames           = self._right_foot
-        self._frame_idx        = 0
+        self._set_frames(self._right_foot)
         self.update()
         self._schedule_frame()
 
     def _end_right_foot(self):
         self._in_right_foot = False
-        self._frames        = self._breathing
-        self._frame_idx     = 0
+        self._set_frames(self._idle_frames)
         self.update()
         self._schedule_frame()
         self._schedule_right_foot()
@@ -382,31 +449,145 @@ class CharacterWidget(QWidget):
         self._tipy_toes_timer.start(random.randint(_TIPY_TOES_MIN_MS, _TIPY_TOES_MAX_MS))
 
     def _trigger_tipy_toes(self):
-        if not self._tipy_toes or self._in_side_eye or self._in_foot_stomp or self._in_tipy_toes:
+        if not self._tipy_toes or self._in_side_eye or self._in_foot_stomp or self._in_tipy_toes or self._hoodie_on:
             self._schedule_tipy_toes()
             return
         self._in_tipy_toes    = True
         self._tipy_toes_count = 0
-        self._frames          = self._tipy_toes
-        self._frame_idx       = 0
+        self._set_frames(self._tipy_toes)
         self.update()
         self._schedule_frame()
 
     def _end_tipy_toes(self):
         self._in_tipy_toes = False
-        self._frames       = self._breathing
-        self._frame_idx    = 0
+        self._set_frames(self._idle_frames)
         self.update()
         self._schedule_frame()
         self._schedule_tipy_toes()
+
+    def _schedule_left_ear(self):
+        self._left_ear_timer.start(random.randint(_LEFT_EAR_MIN_MS, _LEFT_EAR_MAX_MS))
+
+    def _trigger_left_ear(self):
+        if not self._left_ear or self._in_side_eye or self._in_foot_stomp or self._in_right_foot or self._in_tipy_toes or self._in_left_ear or self._in_right_ear or self._hoodie_on:
+            self._schedule_left_ear()
+            return
+        self._in_left_ear    = True
+        self._left_ear_count = 0
+        self._set_frames(self._left_ear)
+        self.update()
+        self._schedule_frame()
+
+    def _end_left_ear(self):
+        self._in_left_ear = False
+        self._set_frames(self._idle_frames)
+        self.update()
+        self._schedule_frame()
+        self._schedule_left_ear()
+
+    def _schedule_right_ear(self):
+        self._right_ear_timer.start(random.randint(_RIGHT_EAR_MIN_MS, _RIGHT_EAR_MAX_MS))
+
+    def _trigger_right_ear(self):
+        if not self._right_ear or self._in_side_eye or self._in_foot_stomp or self._in_right_foot or self._in_tipy_toes or self._in_left_ear or self._in_right_ear or self._hoodie_on:
+            self._schedule_right_ear()
+            return
+        self._in_right_ear    = True
+        self._right_ear_count = 0
+        self._set_frames(self._right_ear)
+        self.update()
+        self._schedule_frame()
+
+    def _end_right_ear(self):
+        self._in_right_ear = False
+        self._set_frames(self._idle_frames)
+        self.update()
+        self._schedule_frame()
+        self._schedule_right_ear()
+
+    def _end_hoodie(self):
+        self._in_hoodie = False
+        self._set_frames(self._hoodie_breathing)
+        self.update()
+        self._schedule_frame()
+
+    def put_on_hoodie(self):
+        if self._hoodie_on or not self._hoodie:
+            return
+        self._hoodie_on    = True
+        self._in_hoodie    = True
+        self._in_side_eye  = False
+        self._in_foot_stomp = False
+        self._in_right_foot = False
+        self._in_tipy_toes  = False
+        self._set_frames(self._hoodie)
+        self.update()
+        self._schedule_frame()
+
+    def take_off_hoodie(self):
+        if not self._hoodie_on:
+            return
+        self._hoodie_on = False
+        self._in_hoodie = False
+        self._set_frames(self._breathing)
+        self.update()
+        self._schedule_frame()
 
     def set_flipped(self, flipped: bool):
         if self._flipped != flipped:
             self._flipped = flipped
             self.update()
 
+    def _tick_glow(self):
+        step = 8
+        if self._glow_alpha < self._glow_target:
+            self._glow_alpha = min(self._glow_alpha + step, self._glow_target)
+        elif self._glow_alpha > self._glow_target:
+            self._glow_alpha = max(self._glow_alpha - step, self._glow_target)
+        if self._glow_alpha == self._glow_target:
+            if self._glow_target == 0:
+                self._glow_timer.stop()
+        self.update()
+
+    def _set_glow(self, emotion: str):
+        hex_color = EMOTION_COLORS.get(emotion, "")
+        if not hex_color or emotion == "neutral":
+            self._glow_target = 0
+        else:
+            self._glow_color = QColor(hex_color)
+            self._glow_target = 90   # max alpha свечения (полупрозрачное)
+        self._glow_timer.start()
+
+    def _end_emotion(self):
+        # возврат к idle после эмоциональной анимации
+        self._set_frames(self._idle_frames)
+        self.update()
+        self._schedule_frame()
+        # начинаем fade-out свечения
+        self._glow_target = 0
+
     def set_emotion(self, emotion: str):
-        pass
+        emotion = emotion.lower().strip()
+        self._emotion = emotion
+        self._set_glow(emotion)
+
+        ase_path = _ASSETS / "emotions" / f"{emotion}.ase"
+        frames = _load_ase(f"emotions/{emotion}.ase") if ase_path.exists() else []
+        if not frames:
+            folder = _ASSETS / "emotions" / emotion
+            if folder.is_dir():
+                for ase_file in sorted(folder.glob("*.ase")):
+                    frames = _load_ase(f"emotions/{emotion}/{ase_file.name}")
+                    if frames:
+                        break
+        if frames:
+            self._emotion_timer.stop()
+            self._set_frames(frames)
+            self.update()
+            self._schedule_frame()
+            # возврат к idle через длительность анимации × 2 (минимум 3 сек)
+            total_ms = sum(d for _, d in frames)
+            self._emotion_timer.start(max(total_ms, 3000))
 
     def set_state(self, state: str):
         pass
@@ -414,6 +595,7 @@ class CharacterWidget(QWidget):
     def paintEvent(self, event):
         p = QPainter(self)
         p.setRenderHint(QPainter.RenderHint.Antialiasing)
+
         if self._frames:
             px, _ = self._frames[self._frame_idx % len(self._frames)]
             if self._flipped:

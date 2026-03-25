@@ -1,3 +1,4 @@
+import collections
 import queue
 
 import numpy as np
@@ -8,22 +9,24 @@ from config import (
     STT_MODEL, STT_LANGUAGE,
 )
 
-_TARGET_SR      = 16_000
-_FRAME_MS       = 20
-_FRAME_SIZE     = _TARGET_SR * _FRAME_MS // 1000
-_SILENCE_FRAMES = int(VAD_SILENCE_MS / _FRAME_MS)
+_TARGET_SR         = 16_000
+_FRAME_MS          = 20
+_FRAME_SIZE        = _TARGET_SR * _FRAME_MS // 1000
+_SILENCE_FRAMES    = int(VAD_SILENCE_MS / _FRAME_MS)
+_PRE_BUFFER_FRAMES = 10   # 200 ms перед началом речи
 
 class SystemAudioListener(QThread):
-    transcribed    = pyqtSignal(str)
-    error_occurred = pyqtSignal(str)
+    transcribed     = pyqtSignal(str)
+    error_occurred  = pyqtSignal(str)
     capture_started = pyqtSignal()
     capture_stopped = pyqtSignal()
 
-    def __init__(self, parent=None):
+    def __init__(self, whisper_model, parent=None):
         super().__init__(parent)
         self._running     = False
         self._active      = False
         self._audio_queue: queue.Queue = queue.Queue()
+        self._whisper     = whisper_model
 
     def set_active(self, active: bool):
         print(f"[sysaudio] set_active={active}")
@@ -32,7 +35,6 @@ class SystemAudioListener(QThread):
     def run(self):
         try:
             import pyaudiowpatch as pyaudio
-            from pywhispercpp.model import Model
         except ImportError as e:
             self.error_occurred.emit(f"Системное аудио недоступно: {e}")
             return
@@ -63,14 +65,7 @@ class SystemAudioListener(QThread):
             self.error_occurred.emit(f"PyAudio: {e}")
             return
 
-        try:
-            whisper = Model(STT_MODEL, n_threads=4, print_realtime=False,
-                            print_progress=False)
-        except Exception as e:
-            pa.terminate()
-            self.error_occurred.emit(f"Whisper: {e}")
-            return
-
+        pre_buffer: collections.deque = collections.deque(maxlen=_PRE_BUFFER_FRAMES)
         speech_buffer: list[np.ndarray] = []
         speech_frame_count  = 0
         silence_frame_count = 0
@@ -102,11 +97,11 @@ class SystemAudioListener(QThread):
                     continue
 
                 if not self._active:
-                    # сбрасываем VAD чтобы не захватить хвост старого звука
                     speech_buffer       = []
                     speech_frame_count  = 0
                     silence_frame_count = 0
                     is_speaking         = False
+                    pre_buffer.clear()
                     continue
 
                 if src_ch > 1:
@@ -120,11 +115,15 @@ class SystemAudioListener(QThread):
                     silence_frame_count  = 0
                 else:
                     silence_frame_count += 1
-                    speech_frame_count   = 0
+                    if not is_speaking and silence_frame_count > 5:
+                        speech_frame_count = 0
+
+                if not is_speaking:
+                    pre_buffer.append(frame)
 
                 if not is_speaking and speech_frame_count >= VAD_SPEECH_FRAMES:
                     is_speaking   = True
-                    speech_buffer = []
+                    speech_buffer = list(pre_buffer)
                     print("[sysaudio] capture started")
                     self.capture_started.emit()
 
@@ -133,23 +132,24 @@ class SystemAudioListener(QThread):
 
                     if silence_frame_count >= _SILENCE_FRAMES:
                         is_speaking   = False
-                        self._active  = False  # одноразовый захват
+                        self._active  = False
                         self.capture_stopped.emit()
                         if speech_buffer:
                             audio = np.concatenate(speech_buffer)
-                            self._transcribe(whisper, audio)
+                            self._transcribe(audio)
                         speech_buffer       = []
                         speech_frame_count  = 0
                         silence_frame_count = 0
+                        pre_buffer.clear()
         finally:
             stream.stop_stream()
             stream.close()
             pa.terminate()
 
-    def _transcribe(self, whisper, audio: np.ndarray):
+    def _transcribe(self, audio: np.ndarray):
         try:
             lang_kwarg = {} if STT_LANGUAGE is None else {"language": STT_LANGUAGE}
-            segments = whisper.transcribe(audio, **lang_kwarg)
+            segments, _info = self._whisper.transcribe(audio, vad_filter=True, **lang_kwarg)
             text = "".join(s.text for s in segments).strip()
             if text:
                 self.transcribed.emit(f"Слышу с компа: {text}")
@@ -159,6 +159,7 @@ class SystemAudioListener(QThread):
     def stop_listening(self):
         self._running = False
         self.wait(3000)
+
 
 from fractions import Fraction
 from scipy.signal import resample_poly

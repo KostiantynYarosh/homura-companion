@@ -84,7 +84,7 @@ class ChatPopup(QWidget):
     def __init__(self, parent=None):
         super().__init__(parent)
 
-        raw = QPixmap(str(_ASSETS / "talking" / "talk-00.png"))
+        raw = QPixmap(str(_ASSETS / "emotions" / "talking" / "talk-00.png"))
         self._raw_bg = raw if not raw.isNull() else QPixmap()
 
         self._popup_w = max(300, CHAR_SIZE * 2 // 3)
@@ -140,7 +140,7 @@ class ChatPopup(QWidget):
         self._text_label = _make_label()
         self._text_label.setWordWrap(True)
         self._text_label.setAlignment(Qt.AlignmentFlag.AlignTop | Qt.AlignmentFlag.AlignLeft)
-        self._text_label.setMaximumWidth(self._popup_w - pad_h * 2)
+        self._text_label.setFixedWidth(self._popup_w - pad_h * 2)
         layout.addWidget(self._text_label)
 
         self.setLayout(layout)
@@ -172,7 +172,10 @@ class ChatPopup(QWidget):
             self._streaming    = True
             self._current_text = ""
         self._current_text += chunk
-        display = re.sub(r'\[EMOTION:\w+\]', '', self._current_text, flags=re.IGNORECASE)
+        # стрипаем все теги включая незакрытые (пришедшие частично при стриминге)
+        display = re.sub(r'\[(?:EMOTION|REMEMBER|HOODIE|LISTEN_PC)[^\]]*\]?', '', self._current_text, flags=re.IGNORECASE)
+        # срезаем любой незакрытый [ в конце (напр. "[", "[E", "[EM")
+        display = re.sub(r'\[[^\]]*$', '', display)
         self._text_label.setText(display.strip())
         self._adjust_size()
         if not self.isVisible():
@@ -230,7 +233,6 @@ class ChatPopup(QWidget):
         event.ignore()
 
     def _adjust_size(self):
-        self._text_label.adjustSize()
         self.adjustSize()
 
     def _show_popup(self):
