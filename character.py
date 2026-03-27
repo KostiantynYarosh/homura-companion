@@ -29,6 +29,8 @@ _LEFT_EAR_REPEATS  = 1
 _RIGHT_EAR_MIN_MS  = 30_000
 _RIGHT_EAR_MAX_MS  = 70_000
 _RIGHT_EAR_REPEATS = 1
+_YAWN_MIN_MS       = 240_000   # 4 мин
+_YAWN_MAX_MS       = 480_000   # 8 мин
 
 
 def _load_ase(filename: str) -> list[tuple[QPixmap, int]]:
@@ -197,7 +199,7 @@ def _load_ase(filename: str) -> list[tuple[QPixmap, int]]:
 
 
 class _SpriteLoader(QThread):
-    sprites_ready = pyqtSignal(list, list, list, list, list, list, list, list, list)
+    sprites_ready = pyqtSignal(list, list, list, list, list, list, list, list, list, list, list)
 
     def run(self):
         breathing        = _load_ase("idle/idle-breathing.ase")
@@ -209,7 +211,9 @@ class _SpriteLoader(QThread):
         hoodie_breathing = _load_ase("idle/idle-hoodie-breathing.ase")
         left_ear         = _load_ase("idle/idle-move-left-ear.ase")
         right_ear        = _load_ase("idle/idle-move-right-ear.ase")
-        self.sprites_ready.emit(breathing, side_eye, foot_stomp, right_foot, tipy_toes, hoodie, hoodie_breathing, left_ear, right_ear)
+        talking          = _load_ase("emotions/talking/talking.ase")
+        yawn             = _load_ase("idle/idle-yawn.ase")
+        self.sprites_ready.emit(breathing, side_eye, foot_stomp, right_foot, tipy_toes, hoodie, hoodie_breathing, left_ear, right_ear, talking, yawn)
 
 
 class CharacterWidget(QWidget):
@@ -232,6 +236,7 @@ class CharacterWidget(QWidget):
         self._left_ear_count   = 0
         self._in_right_ear     = False
         self._right_ear_count  = 0
+        self._in_yawn          = False
         self._emotion          = "neutral"
         self._glow_alpha       = 0       # 0..255, анимируется
         self._glow_color       = QColor("#7EB8F7")
@@ -245,6 +250,9 @@ class CharacterWidget(QWidget):
         self._hoodie_breathing: list = []
         self._left_ear:         list = []
         self._right_ear:        list = []
+        self._yawn:             list = []
+        self._talking:          list = []
+        self._is_talking        = False
         self._frames    = self._breathing
         self._frame_idx = 0
 
@@ -275,6 +283,10 @@ class CharacterWidget(QWidget):
         self._right_ear_timer = QTimer(self)
         self._right_ear_timer.setSingleShot(True)
         self._right_ear_timer.timeout.connect(self._trigger_right_ear)
+
+        self._yawn_timer = QTimer(self)
+        self._yawn_timer.setSingleShot(True)
+        self._yawn_timer.timeout.connect(self._trigger_yawn)
 
         # таймер возврата из эмоции в idle
         self._emotion_timer = QTimer(self)
@@ -310,7 +322,7 @@ class CharacterWidget(QWidget):
         self._frame_idx = idx
         self._resize_for(frames)
 
-    def _on_sprites_ready(self, breathing: list, side_eye: list, foot_stomp: list, right_foot: list, tipy_toes: list, hoodie: list, hoodie_breathing: list, left_ear: list, right_ear: list):
+    def _on_sprites_ready(self, breathing: list, side_eye: list, foot_stomp: list, right_foot: list, tipy_toes: list, hoodie: list, hoodie_breathing: list, left_ear: list, right_ear: list, talking: list, yawn: list):
         self._breathing        = breathing
         self._side_eye         = side_eye
         self._foot_stomp       = foot_stomp
@@ -320,6 +332,8 @@ class CharacterWidget(QWidget):
         self._hoodie_breathing = hoodie_breathing
         self._left_ear         = left_ear
         self._right_ear        = right_ear
+        self._talking          = talking
+        self._yawn             = yawn
         self._set_frames(self._idle_frames)
 
         self._schedule_frame()
@@ -329,6 +343,7 @@ class CharacterWidget(QWidget):
         self._schedule_tipy_toes()
         self._schedule_left_ear()
         self._schedule_right_ear()
+        self._schedule_yawn()
         self.update()
 
     @property
@@ -345,6 +360,15 @@ class CharacterWidget(QWidget):
             return
         self._frame_idx += 1
         if self._frame_idx >= len(self._frames):
+            # talking: зациклить если стриминг ещё идёт, иначе вернуться в idle
+            if self._is_talking:
+                if self._talking and self._frames is self._talking:
+                    self._frame_idx = 0
+                    self.update()
+                    self._schedule_frame()
+                else:
+                    self.stop_talking()
+                return
             if self._in_hoodie:
                 self._end_hoodie()
                 return
@@ -381,6 +405,9 @@ class CharacterWidget(QWidget):
                     self._end_right_ear()
                     return
                 self._frame_idx = 0
+            elif self._in_yawn:
+                self._end_yawn()
+                return
             else:
                 self._frame_idx = 0
         self.update()
@@ -505,6 +532,28 @@ class CharacterWidget(QWidget):
         self._schedule_frame()
         self._schedule_right_ear()
 
+    def _schedule_yawn(self):
+        self._yawn_timer.start(random.randint(_YAWN_MIN_MS, _YAWN_MAX_MS))
+
+    def _trigger_yawn(self):
+        busy = (self._in_side_eye or self._in_foot_stomp or self._in_right_foot
+                or self._in_tipy_toes or self._in_left_ear or self._in_right_ear
+                or self._in_yawn or self._is_talking or self._hoodie_on)
+        if not self._yawn or busy:
+            self._schedule_yawn()
+            return
+        self._in_yawn = True
+        self._set_frames(self._yawn)
+        self.update()
+        self._schedule_frame()
+
+    def _end_yawn(self):
+        self._in_yawn = False
+        self._set_frames(self._idle_frames)
+        self.update()
+        self._schedule_frame()
+        self._schedule_yawn()
+
     def _end_hoodie(self):
         self._in_hoodie = False
         self._set_frames(self._hoodie_breathing)
@@ -537,6 +586,25 @@ class CharacterWidget(QWidget):
         if self._flipped != flipped:
             self._flipped = flipped
             self.update()
+
+    def start_talking(self):
+        if not self._talking or self._is_talking:
+            return
+        self._is_talking = True
+        self._emotion_timer.stop()
+        self._set_frames(self._talking)
+        self.update()
+        self._schedule_frame()
+
+    def stop_talking(self):
+        if not self._is_talking:
+            return
+        self._is_talking = False
+        self._anim_timer.stop()
+        self._set_frames(self._idle_frames)
+        self._frame_idx = 0
+        self.update()
+        self._schedule_frame()
 
     def _tick_glow(self):
         step = 8

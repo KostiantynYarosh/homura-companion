@@ -118,7 +118,9 @@ def main():
     sys_audio.error_occurred.connect(popup.on_error)
 
     ai_core.chunk_received.connect(popup.on_chunk)
+    ai_core.chunk_received.connect(lambda _: character.start_talking())
     ai_core.response_done.connect(popup.on_response_done)
+    ai_core.response_done.connect(lambda *_: character.stop_talking())
     ai_core.response_done.connect(
         lambda text, emotion: character.set_emotion(emotion))
     ai_core.error_occurred.connect(popup.on_error)
