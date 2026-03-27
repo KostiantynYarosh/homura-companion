@@ -40,6 +40,7 @@ def strip_all_tags(text: str) -> str:
 
 class _Signals(QObject):
     chunk_received = pyqtSignal(str)
+    talking_done   = pyqtSignal()
     response_done  = pyqtSignal(str, str, bool, object, list)
     error_occurred = pyqtSignal(str)
 
@@ -64,6 +65,7 @@ class AIWorker(QRunnable):
             },
         }
         chunks: list[str] = []
+        talking_stopped = False
         try:
             with httpx.stream("POST", url, json=payload,
                               timeout=OLLAMA_TIMEOUT) as resp:
@@ -83,6 +85,9 @@ class AIWorker(QRunnable):
                     chunk = data.get("message", {}).get("content", "")
                     if chunk:
                         chunks.append(chunk)
+                        if not talking_stopped and "[" in "".join(chunks):
+                            talking_stopped = True
+                            self.signals.talking_done.emit()
                         self.signals.chunk_received.emit(chunk)
 
             full_text  = "".join(chunks)
@@ -101,6 +106,7 @@ class AIWorker(QRunnable):
 
 class AICore(QObject):
     chunk_received      = pyqtSignal(str)
+    talking_done        = pyqtSignal()
     response_done       = pyqtSignal(str, str)
     error_occurred      = pyqtSignal(str)
     listen_pc_requested = pyqtSignal()
@@ -122,16 +128,25 @@ class AICore(QObject):
     def _reset_history(self):
         self._history = [{"role": "system", "content": self._system_prompt()}]
 
-    def send(self, user_text: str):
+    def send_pc_audio(self, text: str):
+        """Отправить транскрипцию звука с ПК как отдельный контекст."""
+        if not text.strip():
+            return
+        labeled = f"[PC_AUDIO] {text.strip()}"
+        self.send(labeled, _pc_audio=True)
+
+    def send(self, user_text: str, _pc_audio: bool = False):
         if self._busy or not user_text.strip():
             return
         self._busy = True
-        self._history.append({"role": "user", "content": user_text})
+        role = "user"
+        self._history.append({"role": role, "content": user_text})
         if len(self._history) > self._MAX_HISTORY + 1:
             self._history = [self._history[0]] + self._history[-self._MAX_HISTORY:]
 
         worker = AIWorker(self._history.copy(), OLLAMA_MODEL)
         worker.signals.chunk_received.connect(self.chunk_received)
+        worker.signals.talking_done.connect(self.talking_done)
         worker.signals.response_done.connect(
             lambda t, e, lp, h, f: self._on_worker_done(t, e, lp, h, f))
         worker.signals.error_occurred.connect(self._on_error)

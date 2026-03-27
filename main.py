@@ -55,10 +55,15 @@ def main():
     _FUZZY_RATIO = 0.65                   # снизили порог: "хамора" = 0.67
     _SESSION_MS  = 60_000  # 60 сек после последней реплики
 
+    _STOP_PC_RE  = re.compile(
+        r'(стоп|хватит|остановись|не\s*слушай|хватит\s*слушать|перестань)', re.IGNORECASE
+    )
+
     session_timer = QTimer()
     session_timer.setSingleShot(True)
     session_timer.setInterval(_SESSION_MS)
-    session_active = [False]
+    session_active  = [False]
+    pc_listening    = [False]
 
     def _end_session():
         session_active[0] = False
@@ -88,6 +93,16 @@ def main():
     def _on_mic(text: str):
         t = text.lower()
         has_wake = _has_wake(t)
+
+        # стоп-команда во время прослушивания ПК
+        if pc_listening[0] and has_wake and _STOP_PC_RE.search(t):
+            sys_audio.force_stop()
+            return
+
+        # пока слушаем ПК — микрофон заблокирован для обычных сообщений
+        if pc_listening[0]:
+            return
+
         if has_wake:
             session_active[0] = True
         if session_active[0]:
@@ -107,22 +122,36 @@ def main():
         lambda: popup.restart_hide() if session_active[0] else None)
     mic.error_occurred.connect(popup.on_error)
 
-    ai_core.listen_pc_requested.connect(lambda: sys_audio.set_active(True))
-    ai_core.listen_pc_requested.connect(lambda: popup.set_status("Слушаю комп..."))
+    def _on_listen_pc():
+        pc_listening[0] = True
+        sys_audio.set_active(True)
+        popup.set_status("Слушаю комп...")
+
+    def _on_pc_transcribed(text: str):
+        pc_listening[0] = False
+        popup.set_status("")
+        ai_core.send_pc_audio(text)
+
+    def _on_capture_stopped():
+        pc_listening[0] = False
+        popup.set_status("")
+
+    ai_core.listen_pc_requested.connect(_on_listen_pc)
     ai_core.hoodie_requested.connect(
         lambda state: character.put_on_hoodie() if state == "on" else character.take_off_hoodie()
     )
 
-    sys_audio.transcribed.connect(ai_core.send)
-    sys_audio.capture_stopped.connect(lambda: popup.set_status(""))
+    sys_audio.transcribed.connect(_on_pc_transcribed)
+    sys_audio.capture_stopped.connect(_on_capture_stopped)
     sys_audio.error_occurred.connect(popup.on_error)
 
     ai_core.chunk_received.connect(popup.on_chunk)
     ai_core.chunk_received.connect(lambda _: character.start_talking())
+    ai_core.talking_done.connect(character.stop_talking)
     ai_core.response_done.connect(popup.on_response_done)
     ai_core.response_done.connect(lambda *_: character.stop_talking())
     ai_core.response_done.connect(
-        lambda text, emotion: character.set_emotion(emotion))
+        lambda _, emotion: character.set_emotion(emotion))
     ai_core.error_occurred.connect(popup.on_error)
 
     screen = app.primaryScreen().availableGeometry()

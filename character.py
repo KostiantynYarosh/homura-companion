@@ -29,8 +29,8 @@ _LEFT_EAR_REPEATS  = 1
 _RIGHT_EAR_MIN_MS  = 30_000
 _RIGHT_EAR_MAX_MS  = 70_000
 _RIGHT_EAR_REPEATS = 1
-_YAWN_MIN_MS       = 240_000   # 4 мин
-_YAWN_MAX_MS       = 480_000   # 8 мин
+_YAWN_MIN_MS       = 180_000   # 3 мин
+_YAWN_MAX_MS       = 240_000   # 4 мин
 
 
 def _load_ase(filename: str) -> list[tuple[QPixmap, int]]:
@@ -133,7 +133,7 @@ def _load_ase(filename: str) -> list[tuple[QPixmap, int]]:
 
         raw_frames.append([dur_ms, frame_cels])
 
-    for fi, (_, cels) in enumerate(raw_frames):
+    for (_, cels) in raw_frames:
         for cel in cels:
             if len(cel) == 8 and cel[4] is None:
                 linked_fi = cel[7]
@@ -252,6 +252,7 @@ class CharacterWidget(QWidget):
         self._right_ear:        list = []
         self._yawn:             list = []
         self._talking:          list = []
+        self._emotion_cache:    dict = {}
         self._is_talking        = False
         self._frames    = self._breathing
         self._frame_idx = 0
@@ -344,6 +345,8 @@ class CharacterWidget(QWidget):
         self._schedule_left_ear()
         self._schedule_right_ear()
         self._schedule_yawn()
+        if self._yawn:
+            QTimer.singleShot(2000, self._trigger_yawn)
         self.update()
 
     @property
@@ -639,15 +642,18 @@ class CharacterWidget(QWidget):
         self._emotion = emotion
         self._set_glow(emotion)
 
-        ase_path = _ASSETS / "emotions" / f"{emotion}.ase"
-        frames = _load_ase(f"emotions/{emotion}.ase") if ase_path.exists() else []
-        if not frames:
-            folder = _ASSETS / "emotions" / emotion
-            if folder.is_dir():
-                for ase_file in sorted(folder.glob("*.ase")):
-                    frames = _load_ase(f"emotions/{emotion}/{ase_file.name}")
-                    if frames:
-                        break
+        if emotion not in self._emotion_cache:
+            ase_path = _ASSETS / "emotions" / f"{emotion}.ase"
+            frames = _load_ase(f"emotions/{emotion}.ase") if ase_path.exists() else []
+            if not frames:
+                folder = _ASSETS / "emotions" / emotion
+                if folder.is_dir():
+                    for ase_file in sorted(folder.glob("*.ase")):
+                        frames = _load_ase(f"emotions/{emotion}/{ase_file.name}")
+                        if frames:
+                            break
+            self._emotion_cache[emotion] = frames
+        frames = self._emotion_cache[emotion]
         if frames:
             self._emotion_timer.stop()
             self._set_frames(frames)
