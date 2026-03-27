@@ -77,8 +77,8 @@ By default Homura is configured for **Russian**, both the STT transcription and 
 stt:
   language: "ru"   # STT language: "en", "de", "ja", "zh", etc. or null for auto-detect
 
-system_prompt: |
-  ALWAYS respond in the same language as the user.   # adjust the rest of system prompt to configure her for your needs
+system_prompt: ALWAYS respond in the same language as the user.   
+# adjust the rest of system prompt to configure her for your needs
 ```
 
 The underlying LLM (Ollama) supports whatever languages your chosen model knows. Models like `qwen2.5` or `mistral-nemo` handle English, Russian, Chinese, German, French, Japanese and many more out of the box.
