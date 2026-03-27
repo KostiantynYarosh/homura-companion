@@ -82,7 +82,7 @@ def main():
                 if ratio >= _FUZZY_RATIO:
                     print(f"[wake] fuzzy match: '{word}' ~ '{wake}' = {ratio:.2f}")
                     return True
-        # проверяем биграммы — вдруг Whisper разбил "хо мура"
+        # проверяем биграммы - вдруг Whisper разбил "хо мура"
         for i in range(len(words) - 1):
             bigram = words[i] + words[i + 1]
             if any(w in bigram for w in _WAKE_WORDS):
@@ -99,7 +99,7 @@ def main():
             sys_audio.force_stop()
             return
 
-        # пока слушаем ПК — микрофон заблокирован для обычных сообщений
+        # пока слушаем ПК - микрофон заблокирован для обычных сообщений
         if pc_listening[0]:
             return
 

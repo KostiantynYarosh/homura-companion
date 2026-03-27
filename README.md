@@ -1,18 +1,19 @@
-<img width="3561" height="1249" alt="Image" src="https://github.com/user-attachments/assets/55dca03d-7ca8-4dda-bb64-aa873cf4125a" />
-# Homura — AI Desktop Companion
+<img width="3561" height="1286" alt="Image" src="https://github.com/user-attachments/assets/ebf0f78d-e4ac-440d-bc52-c4bab1e5509f" />
+
+## Homura - AI Desktop Companion
 
 A living desktop companion powered by a local LLM. She sits on your screen, listens to your voice, reacts with emotions, and remembers things about you.
 
 ## Features
 
-- **Voice activation** — wake word "Homura" with fuzzy matching (works even with mispronunciations)
-- **Streaming AI responses** — powered by Ollama running locally, no cloud required
-- **Emotion system** — character reacts with animated expressions (happy, sad, blushed, angry, surprised, shy, thinking)
-- **System audio listening** — she can listen to what's playing on your PC (music, Discord calls, etc.) and comment on it
-- **Persistent memory** — remembers facts about you across sessions (up to 50 facts)
-- **Rich idle animations** — breathing, ear twitches, foot stomps, yawning, tippy-toes, side-eye and much more
-- **Hoodie system** — ask her to put on or take off her hoodie
-- **System tray** — always-on-top toggle, hide/show, quit
+- **Voice activation** - wake word "Homura" with fuzzy matching (works even with mispronunciations)
+- **Streaming AI responses** - powered by Ollama running locally, no cloud required
+- **Emotion system** - character reacts with animated expressions (happy, sad, blushed, angry, surprised, shy, thinking)
+- **System audio listening** - she can listen to what's playing on your PC (music, Discord calls, etc.) and comment on it
+- **Persistent memory** - remembers facts about you across sessions (up to 50 facts)
+- **Rich idle animations** - breathing, ear twitches, foot stomps, yawning, tippy-toes, side-eye and much more
+- **Hoodie system** - ask her to put on or take off her hoodie
+- **System tray** - always-on-top toggle, hide/show, quit
 
 ## Demo
 ![Image](https://github.com/user-attachments/assets/ec345edc-9d7d-4120-96e1-c14f9d487d61)
@@ -92,7 +93,7 @@ Microphone → Faster-Whisper (STT) → Wake word detection
 **PC Audio mode:**
 1. Say "Homura, listen to the music"
 2. She starts capturing system audio (up to 15 sec)
-3. Transcription is sent to the AI as `[PC_AUDIO] <text>` — clearly labeled so she knows it's not your speech
+3. Transcription is sent to the AI as `[PC_AUDIO] <text>` - clearly labeled so she knows it's not your speech
 4. Say "Homura stop" to end early
 
 ## Animations

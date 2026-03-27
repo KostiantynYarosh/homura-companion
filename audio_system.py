@@ -179,7 +179,7 @@ class SystemAudioListener(QThread):
                         speech_frame_count  = 0
                         silence_frame_count = 0
                         pre_buffer.clear()
-                        # НЕ останавливаем — продолжаем слушать до таймаута/стопа
+                        # НЕ останавливаем - продолжаем слушать до таймаута/стопа
         finally:
             stream.stop_stream()
             stream.close()
