@@ -1,4 +1,4 @@
-<img width="3561" height="1286" alt="Image" src="https://github.com/user-attachments/assets/ebf0f78d-e4ac-440d-bc52-c4bab1e5509f" />
+<img width="3561" height="1286" alt="Image" src="https://github.com/user-attachments/assets/1becb3b6-62ef-4e29-ad42-7304c94b228f" />
 
 ## Homura - AI Desktop Companion
 
