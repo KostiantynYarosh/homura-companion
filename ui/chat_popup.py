@@ -5,9 +5,9 @@ from PyQt6.QtWidgets import QWidget, QLabel, QVBoxLayout, QApplication
 from PyQt6.QtCore import Qt, QTimer, QPoint, QRect, pyqtSignal
 from PyQt6.QtGui import QPainter, QColor, QFont, QPixmap, QFontDatabase, QPalette
 
-from config import CHAR_SIZE, WINDOW_MARGIN
+from core.config import CHAR_SIZE, WINDOW_MARGIN
 
-_ASSETS = Path(__file__).parent / "assets"
+_ASSETS = Path(__file__).parent.parent / "assets"
 _SLICE_MARGIN = 20
 
 

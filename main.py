@@ -4,7 +4,7 @@ from difflib import SequenceMatcher
 
 # ctranslate2 (faster-whisper) конфликтует с Qt если Qt импортируется первым.
 # Грузим модель до любых PyQt6-импортов.
-from config import STT_MODEL
+from core.config import STT_MODEL
 print(f"[whisper] loading model '{STT_MODEL}'...")
 from faster_whisper import WhisperModel
 _whisper = WhisperModel(STT_MODEL, device="auto", compute_type="int8")
@@ -13,14 +13,14 @@ print("[whisper] model ready")
 from PyQt6.QtWidgets import QApplication
 from PyQt6.QtCore import QTimer
 
-from window import CompanionWindow
-from character import CharacterWidget
-from tray import SystemTrayManager
-from chat_popup import ChatPopup
-from ai import AICore
-from stt import MicListener
-from audio_system import SystemAudioListener
-from config import WINDOW_MARGIN
+from ui.window import CompanionWindow
+from ui.character import CharacterWidget
+from ui.tray import SystemTrayManager
+from ui.chat_popup import ChatPopup
+from core.ai import AICore
+from audio.stt import MicListener
+from audio.audio_system import SystemAudioListener
+from core.config import WINDOW_MARGIN
 
 def main():
     app = QApplication(sys.argv)

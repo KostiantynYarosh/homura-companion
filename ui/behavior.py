@@ -4,7 +4,7 @@ from enum import Enum
 from PyQt6.QtCore import QObject, QTimer, pyqtSignal, QRect
 from PyQt6.QtWidgets import QApplication
 
-from config import (
+from core.config import (
     WALK_SPEED_PX, WALK_TIMER_MS,
     PAUSE_MIN_MS, PAUSE_MAX_MS,
     WALK_MIN_MS, WALK_MAX_MS,

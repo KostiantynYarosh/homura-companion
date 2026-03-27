@@ -1,7 +1,7 @@
 import json
 from pathlib import Path
 
-_MEMORY_FILE = Path(__file__).parent / "memory.json"
+_MEMORY_FILE = Path(__file__).parent.parent / "memory.json"
 _MAX_FACTS   = 50   # не даём файлу расти бесконечно
 
 

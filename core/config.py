@@ -2,7 +2,7 @@ import ctypes
 import yaml
 from pathlib import Path
 
-_ai = yaml.safe_load((Path(__file__).parent / "ai_config.yaml").read_text(encoding="utf-8"))
+_ai = yaml.safe_load((Path(__file__).parent.parent / "ai_config.yaml").read_text(encoding="utf-8"))
 
 OLLAMA_BASE_URL = _ai["ollama"]["base_url"]
 OLLAMA_MODEL    = _ai["ollama"]["model"]

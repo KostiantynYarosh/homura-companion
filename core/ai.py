@@ -4,12 +4,12 @@ import re
 import httpx
 from PyQt6.QtCore import QObject, QRunnable, QThreadPool, pyqtSignal
 
-from config import (
+from core.config import (
     OLLAMA_BASE_URL, OLLAMA_MODEL, OLLAMA_TIMEOUT,
     TEMPERATURE, NUM_PREDICT, THINK,
     SYSTEM_PROMPT, EMOTION_COLORS, DEFAULT_EMOTION,
 )
-from memory import save_fact, build_memory_block
+from core.memory import save_fact, build_memory_block
 
 _EMOTION_RE    = re.compile(r'\[EMOTION:(\w+)\]', re.IGNORECASE)
 _LISTEN_PC_RE  = re.compile(r'\[LISTEN_PC\]', re.IGNORECASE)

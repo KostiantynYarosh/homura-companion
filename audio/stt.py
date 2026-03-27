@@ -5,7 +5,7 @@ import re
 import numpy as np
 from PyQt6.QtCore import QThread, pyqtSignal
 
-from config import (
+from core.config import (
     MIC_SAMPLE_RATE, MIC_CHANNELS,
     VAD_ENERGY_THRESH, VAD_SPEECH_FRAMES, VAD_SILENCE_MS,
     STT_MODEL, STT_LANGUAGE,

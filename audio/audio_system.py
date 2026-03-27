@@ -5,7 +5,7 @@ import time
 import numpy as np
 from PyQt6.QtCore import QThread, pyqtSignal
 
-from config import (
+from core.config import (
     VAD_ENERGY_THRESH, VAD_SPEECH_FRAMES, VAD_SILENCE_MS,
     STT_LANGUAGE,
 )

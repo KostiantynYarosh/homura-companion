@@ -2,7 +2,7 @@ from PyQt6.QtWidgets import QWidget, QApplication
 from PyQt6.QtCore import Qt, pyqtSignal, QPoint, QTimer
 from PyQt6.QtGui import QPainter, QColor
 
-from config import CHAR_SIZE, WINDOW_MARGIN
+from core.config import CHAR_SIZE, WINDOW_MARGIN
 
 class CompanionWindow(QWidget):
     clicked        = pyqtSignal()
