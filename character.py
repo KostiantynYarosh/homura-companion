@@ -345,8 +345,6 @@ class CharacterWidget(QWidget):
         self._schedule_left_ear()
         self._schedule_right_ear()
         self._schedule_yawn()
-        if self._yawn:
-            QTimer.singleShot(2000, self._trigger_yawn)
         self.update()
 
     @property
