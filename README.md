@@ -69,26 +69,19 @@ stt:
   language: "ru"         # ru, en, or null for auto-detect
 ```
 
-## How It Works
+## Language
 
-```
-Microphone → Faster-Whisper (STT) → Wake word detection
-                                          ↓
-                                    Ollama LLM (streaming)
-                                          ↓
-                              Tag parsing: [EMOTION:xxx]
-                                          [LISTEN_PC]
-                                          [REMEMBER:fact]
-                                          ↓
-                              Character animation + chat popup
+By default Homura is configured for **Russian**, both the STT transcription and the AI system prompt are set to `ru`. This can be changed to any language supported by the model in two places in `ai_config.yaml`:
+
+```yaml
+stt:
+  language: "ru"   # STT language: "en", "de", "ja", "zh", etc. or null for auto-detect
+
+system_prompt: |
+  ALWAYS respond in the same language as the user.   # adjust the rest of system prompt to configure her for your needs
 ```
 
-**AI tags the model uses:**
-| Tag | Effect |
-|-----|--------|
-| `[EMOTION:happy]` | Triggers emotion animation + colored glow |
-| `[LISTEN_PC]` | Starts capturing system audio for up to 15 seconds |
-| `[REMEMBER:fact]` | Saves a fact to persistent memory |
+The underlying LLM (Ollama) supports whatever languages your chosen model knows. Models like `qwen2.5` or `mistral-nemo` handle English, Russian, Chinese, German, French, Japanese and many more out of the box.
 
 **PC Audio mode:**
 1. Say "Homura, listen to the music"
@@ -103,11 +96,11 @@ All sprites are in [Aseprite](https://www.aseprite.org/) `.ase` format. The app 
 | Animation | Trigger |
 |-----------|---------|
 | Breathing | Default idle |
-| Side-eye glance | Random, 45–90 sec |
-| Foot stomp (L/R) | Random, 20–65 sec |
-| Tippy-toes | Random, 30–75 sec |
-| Ear twitch (L/R) | Random, 25–70 sec |
-| Yawn | Random, 3–4 min |
+| Side-eye glance | Random, 45-90 sec |
+| Foot stomp (L/R) | Random, 20-65 sec |
+| Tippy-toes | Random, 30-75 sec |
+| Ear twitch (L/R) | Random, 25-70 sec |
+| Yawn | Random, 3-4 min |
 | Talking | While AI is streaming response |
 | Emotions | After AI response completes |
 | Hoodie | Voice command or AI tag |
