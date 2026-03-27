@@ -16,7 +16,7 @@ A living desktop companion powered by a local LLM. She sits on your screen, list
 - **System tray** - always-on-top toggle, hide/show, quit
 
 ## Demo
-![Image](https://github.com/user-attachments/assets/ec345edc-9d7d-4120-96e1-c14f9d487d61)
+<img src="https://github.com/user-attachments/assets/ec345edc-9d7d-4120-96e1-c14f9d487d61" width="400"/>
 
 
 ## Requirements
