@@ -20,12 +20,11 @@ def _draw_9slice(painter: QPainter, pixmap: QPixmap, target: QRect, margin: int)
     ox = target.x()
     oy = target.y()
 
-    smw = sw - m * 2   # source middle width
-    smh = sh - m * 2   # source middle height
-    tmw = tw - m * 2   # target middle width
-    tmh = th - m * 2   # target middle height
+    smw = sw - m * 2
+    smh = sh - m * 2
+    tmw = tw - m * 2
+    tmh = th - m * 2
 
-    # src rects           (x,        y,        w,   h  )
     src_tl = QRect(0,       0,       m,   m  )
     src_tr = QRect(sw-m,    0,       m,   m  )
     src_bl = QRect(0,       sh-m,    m,   m  )
@@ -36,7 +35,6 @@ def _draw_9slice(painter: QPainter, pixmap: QPixmap, target: QRect, margin: int)
     src_r  = QRect(sw-m,    m,       m,   smh)
     src_c  = QRect(m,       m,       smw, smh)
 
-    # dst rects
     dst_tl = QRect(ox,         oy,         m,   m  )
     dst_tr = QRect(ox+tw-m,    oy,         m,   m  )
     dst_bl = QRect(ox,         oy+th-m,    m,   m  )
@@ -68,7 +66,6 @@ def _pixel_font() -> str:
     font_id = QFontDatabase.addApplicationFontFromData(font_data)
     families = QFontDatabase.applicationFontFamilies(font_id)
 
-    # monogram.ttf internal family name is always "monogram"
     _PIXEL_FONT_FAMILY = families[0] if families else "monogram"
     return _PIXEL_FONT_FAMILY
 
@@ -172,9 +169,7 @@ class ChatPopup(QWidget):
             self._streaming    = True
             self._current_text = ""
         self._current_text += chunk
-        # стрипаем все теги включая незакрытые (пришедшие частично при стриминге)
         display = re.sub(r'\[(?:EMOTION|REMEMBER|HOODIE|LISTEN_PC)[^\]]*\]?', '', self._current_text, flags=re.IGNORECASE)
-        # срезаем любой незакрытый [ в конце (напр. "[", "[E", "[EM")
         display = re.sub(r'\[[^\]]*$', '', display)
         self._text_label.setText(display.strip())
         self._adjust_size()

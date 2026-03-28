@@ -1,3 +1,4 @@
 .claude
-/__pycache__
+**/__pycache__
+*.pyc
 memory.json

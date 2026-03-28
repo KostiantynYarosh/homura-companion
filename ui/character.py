@@ -29,8 +29,8 @@ _LEFT_EAR_REPEATS  = 1
 _RIGHT_EAR_MIN_MS  = 30_000
 _RIGHT_EAR_MAX_MS  = 70_000
 _RIGHT_EAR_REPEATS = 1
-_YAWN_MIN_MS       = 180_000   # 3 мин
-_YAWN_MAX_MS       = 240_000   # 4 мин
+_YAWN_MIN_MS       = 180_000
+_YAWN_MAX_MS       = 240_000
 
 
 def _load_ase(filename: str) -> list[tuple[QPixmap, int]]:
@@ -236,9 +236,8 @@ class CharacterWidget(QWidget):
         self._left_ear_count   = 0
         self._in_right_ear     = False
         self._right_ear_count  = 0
-        self._in_yawn          = False
         self._emotion          = "neutral"
-        self._glow_alpha       = 0       # 0..255, анимируется
+        self._glow_alpha       = 0
         self._glow_color       = QColor("#7EB8F7")
 
         self._breathing:        list = []
@@ -252,6 +251,7 @@ class CharacterWidget(QWidget):
         self._right_ear:        list = []
         self._yawn:             list = []
         self._talking:          list = []
+        self._in_yawn           = False
         self._emotion_cache:    dict = {}
         self._is_talking        = False
         self._frames    = self._breathing
@@ -289,16 +289,14 @@ class CharacterWidget(QWidget):
         self._yawn_timer.setSingleShot(True)
         self._yawn_timer.timeout.connect(self._trigger_yawn)
 
-        # таймер возврата из эмоции в idle
         self._emotion_timer = QTimer(self)
         self._emotion_timer.setSingleShot(True)
         self._emotion_timer.timeout.connect(self._end_emotion)
 
-        # таймер fade-in/out свечения (тикает каждые 30ms)
         self._glow_timer = QTimer(self)
         self._glow_timer.setInterval(30)
         self._glow_timer.timeout.connect(self._tick_glow)
-        self._glow_target = 0   # целевой alpha свечения
+        self._glow_target = 0
 
         self._loader = _SpriteLoader(self)
         self._loader.sprites_ready.connect(self._on_sprites_ready)
@@ -345,6 +343,7 @@ class CharacterWidget(QWidget):
         self._schedule_left_ear()
         self._schedule_right_ear()
         self._schedule_yawn()
+        QTimer.singleShot(2000, self._trigger_yawn)
         self.update()
 
     @property
@@ -361,7 +360,6 @@ class CharacterWidget(QWidget):
             return
         self._frame_idx += 1
         if self._frame_idx >= len(self._frames):
-            # talking: зациклить если стриминг ещё идёт, иначе вернуться в idle
             if self._is_talking:
                 if self._talking and self._frames is self._talking:
                     self._frame_idx = 0
@@ -624,15 +622,13 @@ class CharacterWidget(QWidget):
             self._glow_target = 0
         else:
             self._glow_color = QColor(hex_color)
-            self._glow_target = 90   # max alpha свечения (полупрозрачное)
+            self._glow_target = 90
         self._glow_timer.start()
 
     def _end_emotion(self):
-        # возврат к idle после эмоциональной анимации
         self._set_frames(self._idle_frames)
         self.update()
         self._schedule_frame()
-        # начинаем fade-out свечения
         self._glow_target = 0
 
     def set_emotion(self, emotion: str):
@@ -657,7 +653,6 @@ class CharacterWidget(QWidget):
             self._set_frames(frames)
             self.update()
             self._schedule_frame()
-            # возврат к idle через длительность анимации × 2 (минимум 3 сек)
             total_ms = sum(d for _, d in frames)
             self._emotion_timer.start(max(total_ms, 3000))
 

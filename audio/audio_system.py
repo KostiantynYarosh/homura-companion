@@ -14,12 +14,12 @@ _TARGET_SR         = 16_000
 _FRAME_MS          = 20
 _FRAME_SIZE        = _TARGET_SR * _FRAME_MS // 1000
 _SILENCE_FRAMES    = int(VAD_SILENCE_MS / _FRAME_MS)
-_PRE_BUFFER_FRAMES = 10   # 200 ms перед началом речи
-_MAX_CAPTURE_S     = 15   # максимум 15 секунд захвата за один раз
+_PRE_BUFFER_FRAMES = 10
+_MAX_CAPTURE_S     = 15
 
 
 class SystemAudioListener(QThread):
-    transcribed     = pyqtSignal(str)   # все накопленные фрагменты одним сообщением
+    transcribed     = pyqtSignal(str)
     error_occurred  = pyqtSignal(str)
     capture_started = pyqtSignal()
     capture_stopped = pyqtSignal()
@@ -117,14 +117,12 @@ class SystemAudioListener(QThread):
                 try:
                     raw = self._audio_queue.get(timeout=0.1)
                 except queue.Empty:
-                    # проверяем таймаут захвата
                     if self._active and time.time() - self._capture_start > _MAX_CAPTURE_S:
                         self._active = False
                         self._flush()
                     continue
 
                 if not self._active:
-                    # сбрасываем VAD-состояние когда неактивны
                     if is_speaking:
                         is_speaking         = False
                         speech_buffer       = []
@@ -133,7 +131,6 @@ class SystemAudioListener(QThread):
                         pre_buffer.clear()
                     continue
 
-                # проверяем таймаут
                 if time.time() - self._capture_start > _MAX_CAPTURE_S:
                     self._active = False
                     if is_speaking and speech_buffer:
@@ -179,7 +176,6 @@ class SystemAudioListener(QThread):
                         speech_frame_count  = 0
                         silence_frame_count = 0
                         pre_buffer.clear()
-                        # НЕ останавливаем - продолжаем слушать до таймаута/стопа
         finally:
             stream.stop_stream()
             stream.close()

@@ -14,7 +14,7 @@ from core.config import (
 _FRAME_MS          = 20
 _FRAME_SIZE        = MIC_SAMPLE_RATE * _FRAME_MS // 1000
 _SILENCE_FRAMES    = int(VAD_SILENCE_MS / _FRAME_MS)
-_PRE_BUFFER_FRAMES = 10   # 10 × 20 ms = 200 ms перед началом речи
+_PRE_BUFFER_FRAMES = 10
 
 class MicListener(QThread):
     transcribed           = pyqtSignal(str)

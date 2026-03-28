@@ -2,8 +2,6 @@ import sys
 import re
 from difflib import SequenceMatcher
 
-# ctranslate2 (faster-whisper) конфликтует с Qt если Qt импортируется первым.
-# Грузим модель до любых PyQt6-импортов.
 from core.config import STT_MODEL
 print(f"[whisper] loading model '{STT_MODEL}'...")
 from faster_whisper import WhisperModel
@@ -51,9 +49,9 @@ def main():
         "хомура", "homura", "хомуру", "хамура", "комура", "хамора",
         "мамора", "хомуро", "хомур", "омура", "гомура", "хомурa",
     )
-    _WAKE_FUZZY  = ("хомура", "homura")   # для нечёткого совпадения
-    _FUZZY_RATIO = 0.65                   # снизили порог: "хамора" = 0.67
-    _SESSION_MS  = 60_000  # 60 сек после последней реплики
+    _WAKE_FUZZY  = ("хомура", "homura")
+    _FUZZY_RATIO = 0.65
+    _SESSION_MS  = 60_000
 
     _STOP_PC_RE  = re.compile(
         r'(стоп|хватит|остановись|не\s*слушай|хватит\s*слушать|перестань)', re.IGNORECASE
@@ -71,10 +69,8 @@ def main():
     session_timer.timeout.connect(_end_session)
 
     def _has_wake(t: str) -> bool:
-        # точное совпадение подстроки
         if any(w in t for w in _WAKE_WORDS):
             return True
-        # нечёткое совпадение по каждому слову
         words = t.split()
         for word in words:
             for wake in _WAKE_FUZZY:
@@ -82,7 +78,6 @@ def main():
                 if ratio >= _FUZZY_RATIO:
                     print(f"[wake] fuzzy match: '{word}' ~ '{wake}' = {ratio:.2f}")
                     return True
-        # проверяем биграммы - вдруг Whisper разбил "хо мура"
         for i in range(len(words) - 1):
             bigram = words[i] + words[i + 1]
             if any(w in bigram for w in _WAKE_WORDS):
@@ -94,12 +89,10 @@ def main():
         t = text.lower()
         has_wake = _has_wake(t)
 
-        # стоп-команда во время прослушивания ПК
         if pc_listening[0] and has_wake and _STOP_PC_RE.search(t):
             sys_audio.force_stop()
             return
 
-        # пока слушаем ПК - микрофон заблокирован для обычных сообщений
         if pc_listening[0]:
             return
 
