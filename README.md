@@ -65,7 +65,7 @@ generation:
   num_predict: 250   # max tokens per response, lower = faster
 
 system_prompt: |
-  You are Homura — a desktop companion with personality.
+  You are Homura - a desktop companion with personality.
   # edit freely to change her name, language, tone, and behavior
 
 stt:
@@ -83,7 +83,7 @@ To rename the companion and change the wake word, just update `wake_words` and `
 
 ## Language
 
-By default Homura is configured for **Russian** — STT, wake words, and the AI system prompt are all set to Russian. Everything can be changed in `ai_config.yaml`:
+By default Homura is configured for **Russian** - STT, wake words, and the AI system prompt are all set to Russian. Everything can be changed in `ai_config.yaml`:
 
 ```yaml
 stt:
