@@ -23,8 +23,25 @@ system_prompt: |
   Если в разговоре ты узнаёшь что-то важное о пользователе (имя, увлечения, работа, настроение, предпочтения и т.п.) - добавь в конец ответа тег [REMEMBER:краткий факт]. Пример: [REMEMBER:пользователя зовут Саша]. Не злоупотребляй - только действительно важные факты.
 
 stt:
-  model: "medium"   # tiny, base, small, medium, large
-  language: "ru"    # ru, en
+  model: "medium"       # tiny, base, small, medium, large
+  language: "ru"        # ru, en
+  wake_words:           # exact substrings to match
+    - "хомура"
+    - "homura"
+    - "хомуру"
+    - "хамура"
+    - "комура"
+    - "хамора"
+    - "мамора"
+    - "хомуро"
+    - "хомур"
+    - "омура"
+    - "гомура"
+    - "хомурa"
+  wake_fuzzy:           # words used for fuzzy matching
+    - "хомура"
+    - "homura"
+  wake_fuzzy_ratio: 0.65
 
 
 emotions:

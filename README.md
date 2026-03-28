@@ -61,24 +61,43 @@ ollama:
   model: "qwen2.5:14b"   # change to any Ollama model
 
 generation:
-  temperature: 0.75
-  num_predict: 250
+  temperature: 0.75  # creativity: 0.0 = deterministic, 1.0 = very random
+  num_predict: 250   # max tokens per response, lower = faster
+
+system_prompt: |
+  You are Homura — a desktop companion with personality.
+  # edit freely to change her name, language, tone, and behavior
 
 stt:
   model: "medium"        # tiny / base / small / medium / large
   language: "ru"         # ru, en, or null for auto-detect
+  wake_words:            # exact substrings matched against STT output
+    - "homura"
+    - "homurа"
+  wake_fuzzy:            # used for fuzzy matching (catches mispronunciations)
+    - "homura"
+  wake_fuzzy_ratio: 0.65 # similarity threshold 0.0–1.0
 ```
+
+To rename the companion and change the wake word, just update `wake_words` and `wake_fuzzy` with the new name and its likely mispronunciations, then update the `system_prompt` with the new name.
 
 ## Language
 
-By default Homura is configured for **Russian**, both the STT transcription and the AI system prompt are set to `ru`. This can be changed to any language supported by the model in two places in `ai_config.yaml`:
+By default Homura is configured for **Russian** — STT, wake words, and the AI system prompt are all set to Russian. Everything can be changed in `ai_config.yaml`:
 
 ```yaml
 stt:
-  language: "ru"   # STT language: "en", "de", "ja", "zh", etc. or null for auto-detect
+  language: "ru"         # STT language: "en", "de", "ja", "zh", etc. or null for auto-detect
 
-system_prompt: ALWAYS respond in the same language as the user.   
-# adjust the rest of system prompt to configure her for your needs
+  wake_words:            # change name to your language
+    - "homura"
+    - "homurа"          
+  wake_fuzzy:            
+    - "homura"
+
+system_prompt: |
+  ALWAYS respond in the same language as the user.
+  # adjust the rest of the prompt to fit your language and character
 ```
 
 The underlying LLM (Ollama) supports whatever languages your chosen model knows. Models like `qwen2.5` or `mistral-nemo` handle English, Russian, Chinese, German, French, Japanese and many more out of the box.

@@ -2,7 +2,7 @@ import sys
 import re
 from difflib import SequenceMatcher
 
-from core.config import STT_MODEL
+from core.config import STT_MODEL, WAKE_WORDS, WAKE_FUZZY, WAKE_FUZZY_RATIO
 print(f"[whisper] loading model '{STT_MODEL}'...")
 from faster_whisper import WhisperModel
 _whisper = WhisperModel(STT_MODEL, device="auto", compute_type="int8")
@@ -45,12 +45,9 @@ def main():
     _HOODIE_ON_RE  = re.compile(r'(одень|надень|надеть|одеть).{0,15}(худи|кофт|свитер)|холодно|мёрзнешь|мёрзнет', re.IGNORECASE)
     _HOODIE_OFF_RE = re.compile(r'(сними|снять|снимай).{0,15}(худи|кофт|свитер)|жарко', re.IGNORECASE)
 
-    _WAKE_WORDS  = (
-        "хомура", "homura", "хомуру", "хамура", "комура", "хамора",
-        "мамора", "хомуро", "хомур", "омура", "гомура", "хомурa",
-    )
-    _WAKE_FUZZY  = ("хомура", "homura")
-    _FUZZY_RATIO = 0.65
+    _WAKE_WORDS  = WAKE_WORDS
+    _WAKE_FUZZY  = WAKE_FUZZY
+    _FUZZY_RATIO = WAKE_FUZZY_RATIO
     _SESSION_MS  = 60_000
 
     _STOP_PC_RE  = re.compile(

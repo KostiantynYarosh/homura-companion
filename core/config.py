@@ -16,8 +16,11 @@ SYSTEM_PROMPT  = _ai["system_prompt"].strip()
 EMOTION_COLORS  = _ai["emotions"]["colors"]
 DEFAULT_EMOTION = _ai["emotions"]["default"]
 
-STT_MODEL    = _ai["stt"]["model"]
-STT_LANGUAGE = _ai["stt"]["language"]
+STT_MODEL         = _ai["stt"]["model"]
+STT_LANGUAGE      = _ai["stt"]["language"]
+WAKE_WORDS        = tuple(_ai["stt"]["wake_words"])
+WAKE_FUZZY        = tuple(_ai["stt"]["wake_fuzzy"])
+WAKE_FUZZY_RATIO  = _ai["stt"]["wake_fuzzy_ratio"]
 
 WALK_SPEED_PX  = 2
 WALK_TIMER_MS  = 16
