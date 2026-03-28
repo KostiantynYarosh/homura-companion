@@ -96,7 +96,6 @@ stt:
 
 system_prompt: | # rewrite system prompt to your language
   ALWAYS respond in the same language as the user. 
-  # adjust the rest of the prompt to fit your language and character
 ```
 
 The underlying LLM (Ollama) supports whatever languages your chosen model knows. Models like `qwen2.5` or `mistral-nemo` handle English, Russian, Chinese, German, French, Japanese and many more out of the box.
