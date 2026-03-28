@@ -64,9 +64,8 @@ generation:
   temperature: 0.75  # creativity: 0.0 = deterministic, 1.0 = very random
   num_predict: 250   # max tokens per response, lower = faster
 
-system_prompt: |
+system_prompt: |   # edit freely to change her name, language, tone, and behavior
   You are Homura - a desktop companion with personality.
-  # edit freely to change her name, language, tone, and behavior
 
 stt:
   model: "medium"        # tiny / base / small / medium / large
@@ -95,8 +94,8 @@ stt:
   wake_fuzzy:            
     - "homura"
 
-system_prompt: |
-  ALWAYS respond in the same language as the user.
+system_prompt: | # rewrite system prompt to your language
+  ALWAYS respond in the same language as the user. 
   # adjust the rest of the prompt to fit your language and character
 ```
 
