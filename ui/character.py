@@ -221,6 +221,8 @@ class CharacterWidget(QWidget):
         super().__init__(parent)
         self.setFixedSize(CHAR_SIZE, CHAR_SIZE)
         self.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents, False)
+        self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground, True)
+        self.setAttribute(Qt.WidgetAttribute.WA_NoSystemBackground, True)
 
         self._flipped          = False
         self._in_side_eye      = False
@@ -661,6 +663,9 @@ class CharacterWidget(QWidget):
 
     def paintEvent(self, event):
         p = QPainter(self)
+        p.setCompositionMode(QPainter.CompositionMode.CompositionMode_Source)
+        p.fillRect(self.rect(), QColor(0, 0, 0, 0))
+        p.setCompositionMode(QPainter.CompositionMode.CompositionMode_SourceOver)
         p.setRenderHint(QPainter.RenderHint.Antialiasing)
 
         if self._frames:

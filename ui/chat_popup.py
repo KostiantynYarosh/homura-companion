@@ -1,4 +1,6 @@
 import re
+import sys
+import ctypes
 from pathlib import Path
 
 from PyQt6.QtWidgets import QWidget, QLabel, QVBoxLayout, QApplication
@@ -6,6 +8,20 @@ from PyQt6.QtCore import Qt, QTimer, QPoint, QRect, pyqtSignal
 from PyQt6.QtGui import QPainter, QColor, QFont, QPixmap, QFontDatabase, QPalette
 
 from core.config import CHAR_SIZE, WINDOW_MARGIN
+
+
+def _remove_dwm_border(hwnd: int):
+    if sys.platform != "win32":
+        return
+    try:
+        dwm = ctypes.windll.dwmapi
+        DWMWA_BORDER_COLOR = 34
+        DWMWA_COLOR_NONE   = ctypes.c_int(0xFFFFFFFE)
+        dwm.DwmSetWindowAttribute(hwnd, DWMWA_BORDER_COLOR,
+                                  ctypes.byref(DWMWA_COLOR_NONE),
+                                  ctypes.sizeof(DWMWA_COLOR_NONE))
+    except Exception:
+        pass
 
 _ASSETS = Path(__file__).parent.parent / "assets"
 _SLICE_MARGIN = 20
@@ -127,8 +143,11 @@ class ChatPopup(QWidget):
             lbl.setFont(font)
             pal = lbl.palette()
             pal.setColor(QPalette.ColorRole.WindowText, text_color)
+            pal.setColor(QPalette.ColorRole.Window, QColor(0, 0, 0, 0))
             lbl.setPalette(pal)
             lbl.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground, True)
+            lbl.setAttribute(Qt.WidgetAttribute.WA_NoSystemBackground, True)
+            lbl.setStyleSheet("background: transparent; border: none;")
             return lbl
 
         self._status_label = _make_label()
@@ -144,6 +163,9 @@ class ChatPopup(QWidget):
 
     def paintEvent(self, event):
         p = QPainter(self)
+        p.setCompositionMode(QPainter.CompositionMode.CompositionMode_Source)
+        p.fillRect(self.rect(), QColor(0, 0, 0, 0))
+        p.setCompositionMode(QPainter.CompositionMode.CompositionMode_SourceOver)
         p.setRenderHint(QPainter.RenderHint.SmoothPixmapTransform)
         if self._mirrored:
             p.translate(self.width(), 0)
@@ -229,6 +251,10 @@ class ChatPopup(QWidget):
 
     def _adjust_size(self):
         self.adjustSize()
+
+    def showEvent(self, event):
+        super().showEvent(event)
+        _remove_dwm_border(int(self.winId()))
 
     def _show_popup(self):
         self.show()

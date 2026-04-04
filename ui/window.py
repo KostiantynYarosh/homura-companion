@@ -1,8 +1,25 @@
+import ctypes
+import sys
+
 from PyQt6.QtWidgets import QWidget, QApplication
 from PyQt6.QtCore import Qt, pyqtSignal, QPoint, QTimer
 from PyQt6.QtGui import QPainter, QColor
 
 from core.config import CHAR_SIZE, WINDOW_MARGIN
+
+
+def _remove_dwm_border(hwnd: int):
+    if sys.platform != "win32":
+        return
+    try:
+        dwm = ctypes.windll.dwmapi
+        DWMWA_BORDER_COLOR = 34
+        DWMWA_COLOR_NONE   = ctypes.c_int(0xFFFFFFFE)
+        dwm.DwmSetWindowAttribute(hwnd, DWMWA_BORDER_COLOR,
+                                  ctypes.byref(DWMWA_COLOR_NONE),
+                                  ctypes.sizeof(DWMWA_COLOR_NONE))
+    except Exception:
+        pass
 
 class CompanionWindow(QWidget):
     clicked        = pyqtSignal()
@@ -42,6 +59,10 @@ class CompanionWindow(QWidget):
         self.setWindowFlags(flags)
         self.show()
 
+    def showEvent(self, event):
+        super().showEvent(event)
+        _remove_dwm_border(int(self.winId()))
+
     def mousePressEvent(self, event):
         if event.button() == Qt.MouseButton.LeftButton:
             self._drag_offset = event.globalPosition().toPoint() - self.pos()
@@ -71,4 +92,5 @@ class CompanionWindow(QWidget):
 
     def paintEvent(self, event):
         p = QPainter(self)
+        p.setCompositionMode(QPainter.CompositionMode.CompositionMode_Source)
         p.fillRect(self.rect(), QColor(0, 0, 0, 0))
