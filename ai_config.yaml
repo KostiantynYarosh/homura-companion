@@ -1,11 +1,12 @@
 ollama:
   base_url: "http://localhost:11434"
-  model: "qwen2.5:14b"
+  model: "gemma4:e4b" #or qwen2.5:14b 
   timeout: 60.0
 
 generation:
   temperature: 0.75
-  num_predict: 250
+  num_predict: 512
+  think: false
 
 system_prompt: |
   Ты Хомура - живой десктопный компаньон с характером.

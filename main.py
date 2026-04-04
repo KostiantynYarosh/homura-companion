@@ -4,9 +4,16 @@ from difflib import SequenceMatcher
 
 from core.config import STT_MODEL, WAKE_WORDS, WAKE_FUZZY, WAKE_FUZZY_RATIO
 print(f"[whisper] loading model '{STT_MODEL}'...")
+import numpy as np
 from faster_whisper import WhisperModel
-_whisper = WhisperModel(STT_MODEL, device="auto", compute_type="int8")
-print("[whisper] model ready")
+try:
+    _whisper = WhisperModel(STT_MODEL, device="cuda", compute_type="int8")
+    # force CUDA libs to load now — cublas64_12.dll is loaded lazily
+    list(_whisper.transcribe(np.zeros(16000, dtype=np.float32))[0])
+    print("[whisper] model ready (CUDA)")
+except Exception:
+    _whisper = WhisperModel(STT_MODEL, device="cpu", compute_type="int8")
+    print("[whisper] model ready (CPU)")
 
 from PyQt6.QtWidgets import QApplication
 from PyQt6.QtCore import QTimer

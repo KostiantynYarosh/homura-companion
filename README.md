@@ -36,13 +36,21 @@ pip install -r requirements.txt
 
 Pull a model in Ollama:
 ```bash
-ollama pull qwen2.5:14b       # recommended (fits in 16GB VRAM)
+ollama pull gemma4:e4b       # top local model at the moment (fits in 8GB VRAM)
+
+ollama pull qwen2.5:14b       # fits in 16GB VRAM
 # or
 ollama pull mistral-nemo:12b  # good alternative
 # or
 ollama pull qwen2.5:7b        # faster, less VRAM
 #or any other model you want
 ```
+
+Cuda:
+```bash
+pip install nvidia-cublas-cu12 
+```
+CUDA is used automatically if available, otherwise falls back to CPU.
 
 ## Running
 
@@ -58,16 +66,16 @@ Edit `ai_config.yaml`:
 
 ```yaml
 ollama:
-  model: "qwen2.5:14b"   # change to any Ollama model
+  model: "gemma4:e4b"   # change to any Ollama model
 
 generation:
   temperature: 0.75  # creativity: 0.0 = deterministic, 1.0 = very random
-  num_predict: 250   # max tokens per response, lower = faster
+  num_predict: 512   # max tokens per response, lower = faster
 
 system_prompt: |   # edit freely to change her name, language, tone, and behavior
   You are Homura - a desktop companion with personality.
 
-stt:
+stt:                     #speech-to-text model
   model: "medium"        # tiny / base / small / medium / large
   language: "ru"         # ru, en, or null for auto-detect
   wake_words:            # exact substrings matched against STT output
@@ -98,7 +106,7 @@ system_prompt: | # rewrite system prompt to your language
   ALWAYS respond in the same language as the user. 
 ```
 
-The underlying LLM (Ollama) supports whatever languages your chosen model knows. Models like `qwen2.5` or `mistral-nemo` handle English, Russian, Chinese, German, French, Japanese and many more out of the box.
+The underlying LLM (Ollama) supports whatever languages your chosen model knows. Models like `gemma4` or `qwen2.5` or `mistral-nemo` handle English, Russian, Chinese, German, French, Japanese and many more out of the box.
 
 **PC Audio mode:**
 1. Say "Homura, listen to the music"
